@@ -26,6 +26,5 @@ typing-inspection==0.4.2
 typing_extensions==4.16.0
 uvicorn==0.52.0
 supabase==2.27.0
-
-bcrypt==5.0.0
+bcrypt==4.2.1
 passlib==1.7.4
