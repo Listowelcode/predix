@@ -188,6 +188,8 @@ def settle_match(
 
             prediction.points_won = points
 
+            prediction.status = "WON"
+
 
             correct_predictions += 1
 
@@ -277,6 +279,8 @@ def settle_match(
         else:
 
             prediction.points_won = 0
+
+            prediction.status = "LOST"
 
 
 

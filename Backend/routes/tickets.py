@@ -394,11 +394,34 @@ def get_my_tickets(
                     "teams":
                     f"{match.home_team} vs {match.away_team}",
 
+                    "home_team":
+                    match.home_team,
+
+                    "away_team":
+                    match.away_team,
+
+                    "home_logo":
+                    match.home_logo,
+
+                    "away_logo":
+                    match.away_logo,
+
                     "prediction":
                     prediction.prediction,
 
                     "match_status":
-                    match.status
+                    match.status,
+
+                    # Per-leg outcome — WON / LOST while still PENDING
+                    # until that specific match is settled. This is
+                    # independent of the ticket's overall status, so a
+                    # ticket can stay "active" while individual legs
+                    # already show as won/lost.
+                    "result":
+                    prediction.status or "PENDING",
+
+                    "points_won":
+                    prediction.points_won or 0
 
                 })
 
@@ -493,6 +516,22 @@ def get_ticket_details(
 
             f"{match.home_team} vs {match.away_team}",
 
+            "home_team":
+
+            match.home_team,
+
+            "away_team":
+
+            match.away_team,
+
+            "home_logo":
+
+            match.home_logo,
+
+            "away_logo":
+
+            match.away_logo,
+
 
             "prediction":
 
@@ -502,6 +541,12 @@ def get_ticket_details(
             "status":
 
             match.status,
+
+            # Per-leg outcome (WON / LOST / PENDING), independent of
+            # the match's own UPCOMING/LIVE/FINISHED status.
+            "result":
+
+            prediction.status or "PENDING",
 
 
             "points":

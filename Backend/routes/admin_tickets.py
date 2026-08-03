@@ -103,11 +103,23 @@ def get_all_tickets(
                     "teams":
                     f"{match.home_team} vs {match.away_team}",
 
+                    "home_team":
+                    match.home_team,
+
+                    "away_team":
+                    match.away_team,
+
                     "prediction":
                     prediction.prediction,
 
                     "status":
-                    match.status
+                    match.status,
+
+                    # Per-leg outcome — lets the admin see which
+                    # individual matches in a still-active ticket have
+                    # already been won/lost, vs. which are pending.
+                    "result":
+                    prediction.status or "PENDING"
 
                 })
 
