@@ -59,47 +59,37 @@ app = FastAPI(
 
 
 app.add_middleware(
-
     CORSMiddleware,
-
     allow_origins=[
-
-        "http://localhost:5500",
-
-        "http://127.0.0.1:5500",
-
-        "http://localhost:5501",
-
-        "http://127.0.0.1:5501",
-
+        # Local
         "http://localhost:3000",
-
         "http://127.0.0.1:3000",
-
         "http://localhost:5173",
-
         "http://127.0.0.1:5173",
-
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
         "http://localhost:8080",
-
         "http://127.0.0.1:8080",
 
-        # Opening the html files directly (double-click) sends
-        # Origin: null — allow that too so the app still works
-        # without a local dev server.
-        "null"
+        # Vercel
+        "https://predix-sporting.vercel.app",
+        "https://predix-git-main.vercel.app",
+        "https://predix-frontend.vercel.app",
 
+        # Netlify
+        "https://predix.netlify.app",
+
+        # GitHub Pages
+        "https://yourusername.github.io",
+
+        # Custom domains
+        "https://predix.com",
+        "https://www.predix.com",
     ],
-
     allow_credentials=True,
-
     allow_methods=["*"],
-
     allow_headers=["*"],
-
 )
-
-
 
 
 
