@@ -307,6 +307,24 @@ class Match(Base):
 
 
 
+    # How long the match stays "LIVE" on the user homepage, starting
+    # from match_date (kickoff). Defaults to 90 minutes (a standard
+    # football match) so existing matches behave sensibly without
+    # an admin having to set anything.
+    duration_minutes = Column(
+
+        Integer,
+
+        default=90,
+
+        server_default="90",
+
+        nullable=False
+
+    )
+
+
+
     home_score = Column(
 
         Integer,

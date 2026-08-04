@@ -16,6 +16,8 @@ from models import (
 
 from dependencies import require_admin
 
+from services.match_status import sync_match_statuses, to_naive_utc
+
 from pydantic import BaseModel
 
 from datetime import datetime
@@ -48,6 +50,8 @@ class MatchCreate(BaseModel):
 
     kickoff_time: str
 
+    duration_minutes: int = 90
+
     home_win_points: int
 
     away_win_points: int
@@ -69,6 +73,8 @@ class MatchUpdate(BaseModel):
     match_date: datetime | None = None
 
     kickoff_time: str | None = None
+
+    duration_minutes: int | None = None
 
     home_win_points: int | None = None
 
@@ -100,6 +106,9 @@ def get_matches(
     ).order_by(
         Match.match_date.desc()
     ).all()
+
+
+    sync_match_statuses(db, matches)
 
 
 
@@ -134,9 +143,11 @@ def create_match(
 
         league=data.league,
 
-        match_date=data.match_date,
+        match_date=to_naive_utc(data.match_date),
 
         kickoff_time=data.kickoff_time,
+
+        duration_minutes=data.duration_minutes or 90,
 
         home_win_points=data.home_win_points,
 
@@ -212,6 +223,11 @@ def update_match(
     updates = data.dict(
         exclude_unset=True
     )
+
+
+    if updates.get("match_date") is not None:
+
+        updates["match_date"] = to_naive_utc(updates["match_date"])
 
 
 

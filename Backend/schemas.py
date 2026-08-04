@@ -100,6 +100,10 @@ class MatchCreate(BaseModel):
 
     kickoff_time: Optional[str] = None
 
+    # Minutes the match should be treated as LIVE for, starting at
+    # match_date. Defaults to a standard 90 minute football match.
+    duration_minutes: int = 90
+
 
     home_win_points: int = 0
 
@@ -127,6 +131,8 @@ class MatchResponse(BaseModel):
     match_date: datetime
 
     kickoff_time: Optional[str] = None
+
+    duration_minutes: int = 90
 
     home_score: Optional[int] = None
 
@@ -162,6 +168,8 @@ class MatchUpdate(BaseModel):
     match_date: Optional[datetime] = None
 
     kickoff_time: Optional[str] = None
+
+    duration_minutes: Optional[int] = None
 
     home_win_points: Optional[int] = None
 

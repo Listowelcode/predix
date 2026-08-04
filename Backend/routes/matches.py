@@ -27,6 +27,8 @@ from dependencies import require_admin
 
 from services.storage import upload_image
 
+from services.match_status import sync_match_statuses, get_match_end, to_naive_utc
+
 from typing import List
 
 from datetime import datetime
@@ -68,6 +70,9 @@ def create_match(
 
 
     kickoff_time: str = Form(None),
+
+
+    duration_minutes: int = Form(90),
 
 
 
@@ -158,10 +163,13 @@ def create_match(
             league=league,
 
 
-            match_date=match_date,
+            match_date=to_naive_utc(match_date),
 
 
             kickoff_time=kickoff_time,
+
+
+            duration_minutes=duration_minutes or 90,
 
 
 
@@ -240,13 +248,74 @@ def get_matches(
 ):
 
 
-    return db.query(
+    matches = db.query(
         Match
     ).order_by(
 
         Match.match_date
 
     ).all()
+
+
+    # Keep the "LIVE" status honest — flip anything whose kickoff
+    # time has arrived, so callers never have to guess.
+    sync_match_statuses(db, matches)
+
+
+    return matches
+
+
+
+
+# =====================================
+# CURRENTLY LIVE MATCHES
+# =====================================
+# A match counts as "live" from kickoff (match_date) until
+# kickoff + duration_minutes, and only while it hasn't already
+# been settled by an admin (status == FINISHED).
+
+
+@router.get(
+    "/live",
+    response_model=List[MatchResponse]
+)
+def get_live_matches(
+
+
+    db: Session = Depends(get_db)
+
+):
+
+
+    now = datetime.utcnow()
+
+
+    matches = db.query(
+        Match
+    ).filter(
+
+        Match.status != "FINISHED",
+
+        Match.match_date <= now
+
+    ).order_by(
+
+        Match.match_date
+
+    ).all()
+
+
+    sync_match_statuses(db, matches)
+
+
+    live = [
+        match for match in matches
+        if match.status != "FINISHED"
+        and now < get_match_end(match)
+    ]
+
+
+    return live
 
 
 
@@ -429,6 +498,11 @@ def update_match(
     )
 
 
+    if "match_date" in changes and changes["match_date"] is not None:
+
+        changes["match_date"] = to_naive_utc(changes["match_date"])
+
+
 
     for key,value in changes.items():
 
@@ -558,7 +632,7 @@ def todays_matches(
 
 
 
-    return db.query(
+    matches = db.query(
         Match
     ).filter(
 
@@ -568,3 +642,9 @@ def todays_matches(
         Match.match_date <= end
 
     ).all()
+
+
+    sync_match_statuses(db, matches)
+
+
+    return matches
