@@ -50,6 +50,14 @@ from routes import admin_badges
 # ===============================
 
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
+print("MAIN.PY IMPORT STARTED")
+
+
+print("FASTAPI APP CREATING")
+
 app = FastAPI(
 
     title="Predix API",
@@ -57,7 +65,6 @@ app = FastAPI(
     version="1.0.0"
 
 )
-
 
 
 
