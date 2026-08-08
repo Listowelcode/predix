@@ -8,6 +8,8 @@ from models import Profile
 
 from typing import List
 
+from services.ranks import get_rank_info
+
 
 
 router = APIRouter(
@@ -45,6 +47,12 @@ def get_leaderboard(
     for index, user in enumerate(users, start=1):
 
 
+        # Points-based tier (Bronze -> Legend), same table used on
+        # the profile page — a user's rank icon should always match
+        # regardless of where their position falls in the list.
+        rank_tier_info = get_rank_info(user.points or 0)
+
+
         leaderboard.append({
 
             "rank": index,
@@ -52,6 +60,8 @@ def get_leaderboard(
             "username": user.username,
 
             "avatar_url": user.avatar_url,
+
+            "country": user.country,
 
             "points": user.points,
 
@@ -63,7 +73,17 @@ def get_leaderboard(
 
             "losses": user.losses,
 
-            "draws": user.draws
+            "draws": user.draws,
+
+            "rank_name": rank_tier_info["label"],
+
+            "rank_tier": rank_tier_info["key"],
+
+            "rank_icon_type": rank_tier_info["icon_type"],
+
+            "rank_icon": rank_tier_info["icon"],
+
+            "rank_color": rank_tier_info["color"]
 
         })
 

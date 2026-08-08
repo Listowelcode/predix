@@ -4,9 +4,11 @@ from sqlalchemy import (
     Integer,
     Boolean,
     DateTime,
+    Date,
     Text,
     JSON,
-    ForeignKey
+    ForeignKey,
+    UniqueConstraint
 )
 
 from sqlalchemy.dialects.postgresql import UUID
@@ -65,6 +67,23 @@ class Profile(Base):
     )
 
 
+    # Phone number in full international format (e.g. "+233241234567"),
+    # collected at signup alongside the country selector below.
+    phone = Column(
+        String,
+        nullable=True
+    )
+
+
+    # ISO 3166-1 alpha-2 country code (e.g. "GH", "US"), captured from
+    # the phone country selector at signup. Drives the flag shown next
+    # to this player on the leaderboard.
+    country = Column(
+        String(2),
+        nullable=True
+    )
+
+
 
     # =========================
     # GAME DATA
@@ -85,6 +104,17 @@ class Profile(Base):
     tickets = Column(
         Integer,
         default=5
+    )
+
+
+    # Timestamp (UTC) of the next daily ticket refresh. NULL means
+    # the user is still on their initial free-ticket balance and
+    # hasn't depleted it yet — the daily 2-ticket cycle only kicks
+    # in the first time tickets hit 0. See services/ticket_refresh.py.
+    next_ticket_reset = Column(
+        DateTime,
+        nullable=True,
+        default=None
     )
 
 
@@ -212,6 +242,23 @@ class Profile(Base):
         Integer,
 
         default=0
+
+    )
+
+
+    # =========================
+    # DAILY LOGIN XP
+    # =========================
+    # UTC calendar date the daily-login XP bonus was last claimed
+    # on. NULL means it has never been claimed. See
+    # services/xp.award_daily_login_xp.
+    last_login_date = Column(
+
+        Date,
+
+        nullable=True,
+
+        default=None
 
     )
 
@@ -890,6 +937,13 @@ class Badge(Base):
 
     icon = Column(String)
 
+    # Common / Uncommon / Rare / Epic / Legendary
+    rarity = Column(
+        String,
+        default="Common",
+        server_default="Common"
+    )
+
     created_at = Column(
         DateTime,
         default=datetime.utcnow
@@ -1071,4 +1125,50 @@ class SeasonReward(Base):
     created_at = Column(
         DateTime,
         default=datetime.utcnow
+    )
+
+# ==========================================
+# MATCHDAY XP CLAIMS
+# ==========================================
+# One row per (user, matchday) once a user has predicted every
+# match scheduled on that UTC calendar date and been paid the
+# matchday-completion XP bonus. See services/xp.py.
+
+class MatchdayXpClaim(Base):
+
+    __tablename__ = "matchday_xp_claims"
+
+
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("profiles.id"),
+        nullable=False
+    )
+
+
+    matchday = Column(
+        Date,
+        nullable=False
+    )
+
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "matchday",
+            name="uq_matchday_xp_claims_user_matchday"
+        ),
     )

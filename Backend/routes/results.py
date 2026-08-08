@@ -6,8 +6,8 @@ from fastapi import (
 
 from sqlalchemy.orm import Session
 
-from services.level import calculate_level
-from services.badges import award_badge
+from services.badges import award_badge, check_rank_badges, check_milestone_badges
+from services.xp import add_xp, CORRECT_PREDICTION_XP
 
 from database import get_db
 
@@ -201,12 +201,7 @@ def settle_match(
 
                 user.points += points
 
-                user.xp += points
-
-
-                user.level = calculate_level(
-                    user.xp
-                )
+                add_xp(user, CORRECT_PREDICTION_XP, db)
 
 
                 user.wins += 1
@@ -216,6 +211,12 @@ def settle_match(
                 # ===============================
                 # BADGES
                 # ===============================
+                # "First Win" is a one-off; the rank ladder (Bronze
+                # through Legend) and count-based milestones
+                # (Prediction Master, Legend) are re-checked against
+                # the user's up-to-date points/wins every time they
+                # change, so badges unlock the instant the criteria
+                # is met.
 
                 award_badge(
                     db,
@@ -223,55 +224,9 @@ def settle_match(
                     "First Win"
                 )
 
+                check_rank_badges(db, user)
 
-
-                if user.points >= 1000:
-
-                    award_badge(
-                        db,
-                        user,
-                        "Legend"
-                    )
-
-
-
-                if user.level >= 2:
-
-                    award_badge(
-                        db,
-                        user,
-                        "Bronze Predictor"
-                    )
-
-
-
-                if user.level >= 3:
-
-                    award_badge(
-                        db,
-                        user,
-                        "Silver Predictor"
-                    )
-
-
-
-                if user.level >= 4:
-
-                    award_badge(
-                        db,
-                        user,
-                        "Gold Predictor"
-                    )
-
-
-
-                if user.level >= 5:
-
-                    award_badge(
-                        db,
-                        user,
-                        "Elite Predictor"
-                    )
+                check_milestone_badges(db, user)
 
 
 

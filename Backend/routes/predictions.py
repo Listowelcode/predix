@@ -22,6 +22,8 @@ from schemas import (
 
 from dependencies import get_current_user
 
+from services.badges import award_badge
+
 from typing import List
 
 from datetime import datetime
@@ -167,6 +169,22 @@ def create_prediction(
     db.commit()
 
     db.refresh(new_prediction)
+
+
+
+    # ===============================
+    # BADGES
+    # ===============================
+    # Awarded the moment a user makes their very first prediction —
+    # doesn't matter if it ends up right or wrong.
+
+    award_badge(
+        db,
+        user,
+        "First Prediction"
+    )
+
+    db.commit()
 
 
     return new_prediction

@@ -10,8 +10,10 @@ from sqlalchemy import func
 
 from database import get_db
 
-from services.ranks import get_rank
+from services.ranks import get_rank_info, get_rank_progress
 from services.level import calculate_level
+from services.badges import sync_badges
+from services.ticket_refresh import sync_daily_tickets
 
 from models import (
     Profile,
@@ -68,6 +70,12 @@ def get_player_profile(
             detail="Player not found"
 
         )
+
+
+
+    # Keep the daily ticket cycle current before reading tickets off
+    # this profile below.
+    sync_daily_tickets(player, db)
 
 
 
@@ -182,6 +190,14 @@ def get_player_profile(
     # =====================================
     # BADGES
     # =====================================
+    # Catch this user up on any rank/milestone badge their current
+    # points or wins already qualify them for, in case it was never
+    # awarded live (e.g. seeded data, or stats that changed outside
+    # the normal winning-prediction flow). Cheap no-op if they're
+    # already fully up to date.
+
+    sync_badges(db, player)
+    db.commit()
 
     badges = []
 
@@ -197,6 +213,8 @@ def get_player_profile(
 
             "icon": user_badge.badge.icon,
 
+            "rarity": user_badge.badge.rarity or "Common",
+
             "earned_at": user_badge.earned_at
 
         })
@@ -204,6 +222,20 @@ def get_player_profile(
 
 
 
+
+
+
+    # =====================================
+    # RANK TIER (points-based)
+    # =====================================
+
+    rank_tier_info = get_rank_info(
+        player.points or 0
+    )
+
+    rank_progress = get_rank_progress(
+        player.points or 0
+    )
 
 
 
@@ -221,6 +253,9 @@ def get_player_profile(
         "avatar_url": player.avatar_url,
 
 
+        "country": player.country,
+
+
         "rank": rank,
 
 
@@ -231,15 +266,31 @@ def get_player_profile(
         
         "tickets": player.tickets or 0,
 
+        # When set, the frontend uses this to render a "renews in
+        # Xh Ym" countdown on the tickets card. NULL means the user
+        # hasn't depleted their initial free tickets yet, so no
+        # daily cycle/timer is running.
+        "next_ticket_reset": player.next_ticket_reset,
+
 
         "level": calculate_level(
             player.xp
         ),
 
 
-        "rank_name": get_rank(
-            player.level
-        ),
+        # Tier name, e.g. "Bronze", "Platinum", "Legend" — driven
+        # entirely by total points, matching the rank table.
+        "rank_name": rank_tier_info["label"],
+
+        "rank_tier": rank_tier_info["key"],
+
+        "rank_icon_type": rank_tier_info["icon_type"],
+
+        "rank_icon": rank_tier_info["icon"],
+
+        "rank_color": rank_tier_info["color"],
+
+        "rank_progress": rank_progress,
 
 
 

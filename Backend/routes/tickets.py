@@ -4,7 +4,7 @@ from fastapi import (
     HTTPException
 )
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 
@@ -17,6 +17,9 @@ from models import (
 )
 
 from dependencies import get_current_user
+
+from services.ticket_refresh import sync_daily_tickets
+from services.xp import check_and_award_matchday_bonus
 
 from pydantic import BaseModel
 
@@ -123,6 +126,8 @@ def create_ticket(
 
     possible_points = 0
 
+    matchdays = set()
+
 
 
     for item in ticket.predictions:
@@ -171,6 +176,9 @@ def create_ticket(
 
             )
 
+
+
+        matchdays.add(match.match_date.date())
 
 
 
@@ -249,6 +257,12 @@ def create_ticket(
 
 
 
+    db.flush()
+
+    # Matchday-completion XP bonus — no-op for any date the user
+    # hasn't now fully covered, or has already claimed.
+    check_and_award_matchday_bonus(user, db, matchdays)
+
 
 
     user.tickets -= 1
@@ -277,6 +291,15 @@ def create_ticket(
 
 
     db.refresh(new_ticket)
+
+
+
+    # If that last ticket just brought the user to 0, kick off the
+    # daily refresh cycle immediately rather than waiting for their
+    # next request.
+    db.refresh(user)
+
+    sync_daily_tickets(user, db)
 
 
 
@@ -315,8 +338,19 @@ def get_my_tickets(
 ):
 
 
+    # Eager-load every ticket's predictions AND each prediction's
+    # match in the same query (a couple of JOINs total) instead of
+    # firing a separate query per ticket and another per
+    # prediction. This is what previously turned a page showing,
+    # say, 10 tickets x 4 matches each into 40+ round-trips to the
+    # database on every load.
     tickets = db.query(
         PredictionTicket
+    ).options(
+
+        joinedload(PredictionTicket.predictions)
+        .joinedload(Prediction.match)
+
     ).filter(
 
         PredictionTicket.user_id == user.id
@@ -337,14 +371,7 @@ def get_my_tickets(
 
     for ticket in tickets:
 
-
-        predictions = db.query(
-            Prediction
-        ).filter(
-
-            Prediction.ticket_id == ticket.id
-
-        ).all()
+        predictions = ticket.predictions
 
 
 
@@ -374,13 +401,7 @@ def get_my_tickets(
         for prediction in predictions:
 
 
-            match = db.query(
-                Match
-            ).filter(
-
-                Match.id == prediction.match_id
-
-            ).first()
+            match = prediction.match
 
 
 

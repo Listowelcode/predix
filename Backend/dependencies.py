@@ -10,6 +10,8 @@ from database import get_db
 
 from models import Profile
 
+from services.ticket_refresh import sync_daily_tickets
+
 from dotenv import load_dotenv
 
 import os
@@ -121,6 +123,13 @@ def get_current_user(
             detail="User not found"
 
         )
+
+
+
+    # Lazily apply/advance the daily ticket-refresh cycle before
+    # this user is used anywhere downstream, so every authenticated
+    # request always sees an up-to-date ticket balance.
+    sync_daily_tickets(user, db)
 
 
 

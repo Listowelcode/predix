@@ -4,7 +4,7 @@ from fastapi import (
     HTTPException
 )
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 
@@ -43,13 +43,32 @@ def get_all_tickets(
 ):
 
 
+    # Eager-load predictions + their matches in the ticket query
+    # itself, and batch-fetch all the involved users in a single
+    # extra query — replacing what used to be 1 (Profile) + 1
+    # (Prediction) + N (Match) queries per ticket with 2 queries
+    # total for the whole page.
     tickets = db.query(
         PredictionTicket
+    ).options(
+
+        joinedload(PredictionTicket.predictions)
+        .joinedload(Prediction.match)
+
     ).order_by(
 
         PredictionTicket.created_at.desc()
 
     ).all()
+
+
+
+    user_ids = {ticket.user_id for ticket in tickets}
+
+    users_by_id = {
+        u.id: u
+        for u in db.query(Profile).filter(Profile.id.in_(user_ids)).all()
+    } if user_ids else {}
 
 
 
@@ -60,21 +79,11 @@ def get_all_tickets(
     for ticket in tickets:
 
 
-        user = db.query(Profile).filter(
-
-            Profile.id == ticket.user_id
-
-        ).first()
+        user = users_by_id.get(ticket.user_id)
 
 
 
-        predictions = db.query(
-            Prediction
-        ).filter(
-
-            Prediction.ticket_id == ticket.id
-
-        ).all()
+        predictions = ticket.predictions
 
 
 
@@ -85,11 +94,7 @@ def get_all_tickets(
         for prediction in predictions:
 
 
-            match = db.query(Match).filter(
-
-                Match.id == prediction.match_id
-
-            ).first()
+            match = prediction.match
 
 
 

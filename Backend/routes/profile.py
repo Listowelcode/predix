@@ -59,12 +59,24 @@ def my_profile(
         user.avatar_url,
 
 
+        "phone":
+        user.phone,
+
+
+        "country":
+        user.country,
+
+
         "points":
         user.points,
 
 
         "tickets":
         user.tickets,
+
+
+        "next_ticket_reset":
+        user.next_ticket_reset,
 
 
         "wins":
@@ -115,6 +127,9 @@ def update_profile(
 
 
     avatar: UploadFile = File(None),
+
+
+    country: str = Form(None),
 
 
     db: Session = Depends(get_db),
@@ -236,6 +251,26 @@ def update_profile(
 
 
 
+    # ===============================
+    # UPDATE COUNTRY
+    # ===============================
+
+    if country:
+
+        country = country.strip().upper()
+
+        if len(country) != 2 or not country.isalpha():
+
+            raise HTTPException(
+
+                status_code=400,
+
+                detail="Country must be a 2-letter code, e.g. GH"
+
+            )
+
+        user.country = country
+
 
 
 
@@ -266,7 +301,12 @@ def update_profile(
 
         "avatar_url":
 
-        user.avatar_url
+        user.avatar_url,
+
+
+        "country":
+
+        user.country
 
 
     }

@@ -23,6 +23,20 @@ class RegisterRequest(BaseModel):
         max_length=72
     )
 
+    # Full international phone number, e.g. "+233241234567"
+    # (dial code from the country selector + the digits the user typed).
+    phone: str = Field(
+        min_length=7,
+        max_length=20
+    )
+
+    # ISO 3166-1 alpha-2 country code from the signup country/flag
+    # selector, e.g. "GH". Drives the flag shown on the leaderboard.
+    country: str = Field(
+        min_length=2,
+        max_length=2
+    )
+
 
 
 class LoginRequest(BaseModel):
@@ -49,6 +63,10 @@ class ProfileResponse(BaseModel):
     email: str
 
     avatar_url: Optional[str] = None
+
+    phone: Optional[str] = None
+
+    country: Optional[str] = None
 
     points: int
 

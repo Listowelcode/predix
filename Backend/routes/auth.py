@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from sqlalchemy.orm import Session
@@ -16,6 +18,7 @@ from security import (
     verify_password,
     create_access_token
 )
+from services.xp import award_daily_login_xp
 
 
 
@@ -85,6 +88,44 @@ def register(
         )
 
 
+    # Validate phone number — expects the full international format
+    # (dial code + number) assembled on the frontend from the country
+    # selector, e.g. "+233241234567".
+
+    if not re.match(r"^\+[1-9]\d{6,14}$", user.phone):
+
+        raise HTTPException(
+
+            status_code=400,
+
+            detail="Enter a valid international phone number"
+
+        )
+
+
+    country_code = user.country.upper()
+
+
+    # Check existing phone number
+
+    existing_phone = db.query(Profile).filter(
+
+        Profile.phone == user.phone
+
+    ).first()
+
+
+    if existing_phone:
+
+        raise HTTPException(
+
+            status_code=400,
+
+            detail="Phone number already registered"
+
+        )
+
+
 
 
     # Create user
@@ -94,6 +135,10 @@ def register(
         username=user.username,
 
         email=user.email,
+
+        phone=user.phone,
+
+        country=country_code,
 
         password_hash=hash_password(
 
@@ -150,6 +195,9 @@ def register(
 
 
             "email": new_user.email,
+
+
+            "country": new_user.country,
 
 
             "role": new_user.role
@@ -244,6 +292,12 @@ def login(
 
 
 
+    # Daily login XP bonus — no-op if already claimed today.
+    award_daily_login_xp(existing_user, db)
+
+    db.commit()
+
+
 
     token = create_access_token(
 
@@ -278,6 +332,9 @@ def login(
 
 
             "email": existing_user.email,
+
+
+            "country": existing_user.country,
 
 
             "role": existing_user.role

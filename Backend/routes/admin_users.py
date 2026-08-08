@@ -45,6 +45,12 @@ class PointsUpdate(BaseModel):
     reason: str
 
 
+class CountryUpdate(BaseModel):
+
+    # ISO 3166-1 alpha-2 country code, e.g. "GH"
+    country: str
+
+
 
 
 
@@ -122,6 +128,12 @@ def get_users(
 
 
             "avatar_url": user.avatar_url,
+
+
+            "phone": user.phone,
+
+
+            "country": user.country,
 
 
             "role": user.role or "USER",
@@ -249,6 +261,12 @@ def get_user_details(
 
 
         "avatar_url": user.avatar_url,
+
+
+        "phone": user.phone,
+
+
+        "country": user.country,
 
 
 
@@ -412,6 +430,78 @@ def update_points(
         "reason": data.reason
 
     }
+
+# =====================================
+# UPDATE COUNTRY
+# =====================================
+# Lets an admin set/correct a user's country — mainly for backfilling
+# accounts created before the signup flow collected this, or fixing
+# a wrong selection. Drives the flag shown on the leaderboard.
+
+
+@router.put("/{user_id}/country")
+def update_country(
+
+    user_id: str,
+
+    data: CountryUpdate,
+
+    db: Session = Depends(get_db),
+
+    admin: Profile = Depends(require_admin)
+
+):
+
+
+    user = db.query(Profile).filter(
+
+        Profile.id == user_id
+
+    ).first()
+
+
+    if not user:
+
+        raise HTTPException(
+
+            status_code=404,
+
+            detail="User not found"
+
+        )
+
+
+    country_code = (data.country or "").strip().upper()
+
+
+    if len(country_code) != 2 or not country_code.isalpha():
+
+        raise HTTPException(
+
+            status_code=400,
+
+            detail="Country must be a 2-letter code, e.g. GH"
+
+        )
+
+
+    user.country = country_code
+
+    db.commit()
+
+    db.refresh(user)
+
+
+    return {
+
+        "message": "Country updated successfully",
+
+        "username": user.username,
+
+        "country": user.country
+
+    }
+
 
 # =====================================
 # DELETE USER
