@@ -50,14 +50,6 @@ from routes import admin_badges
 # ===============================
 
 
-import logging
-logging.basicConfig(level=logging.INFO)
-
-print("MAIN.PY IMPORT STARTED")
-
-
-print("FASTAPI APP CREATING")
-
 app = FastAPI(
 
     title="Predix API",
@@ -65,6 +57,7 @@ app = FastAPI(
     version="1.0.0"
 
 )
+
 
 
 
@@ -99,7 +92,7 @@ app.add_middleware(
 
         "http://localhost:8080",
 
-        "https://predix-1.vercel.app",
+        "http://127.0.0.1:8080",
 
         # Opening the html files directly (double-click) sends
         # Origin: null — allow that too so the app still works

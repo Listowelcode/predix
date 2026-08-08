@@ -463,13 +463,22 @@ class Match(Base):
     # =========================
 
 
+    # NOTE: no delete-orphan cascade here. A Prediction's lifecycle
+    # belongs to its PredictionTicket (see PredictionTicket.predictions
+    # below), not to the Match it references — a Match is a shared
+    # reference row looked up by many different users' tickets.
+    # Having delete-orphan configured on BOTH sides made Predictions
+    # vulnerable to being silently deleted any time a Match object's
+    # `.predictions` collection was loaded/touched in the same
+    # session as other prediction writes, which is what was wiping
+    # out older tickets' match details. Deletion is still handled
+    # explicitly (see routes/matches.py delete_match) when a match
+    # itself is removed.
     predictions = relationship(
 
         "Prediction",
 
-        back_populates="match",
-
-        cascade="all, delete-orphan"
+        back_populates="match"
 
     )
 # ==========================================
