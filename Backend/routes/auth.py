@@ -77,10 +77,11 @@ def register(
     # ---------------------------------
     # Validate phone number
     # ---------------------------------
-    # Expects international format:
-    # +233241234567
 
-    if not re.match(r"^\+[1-9]\d{6,14}$", user.phone):
+    if not re.match(
+        r"^\+[1-9]\d{6,14}$",
+        user.phone
+    ):
 
         raise HTTPException(
             status_code=400,
@@ -127,10 +128,9 @@ def register(
     try:
 
         db.commit()
-
         db.refresh(new_user)
 
-    except Exception as exc:
+    except Exception:
 
         db.rollback()
 
@@ -169,7 +169,6 @@ def register(
 
 
     return {
-
         "message": "Account created successfully",
 
         "access_token": token,
@@ -177,19 +176,12 @@ def register(
         "token_type": "bearer",
 
         "user": {
-
             "id": str(new_user.id),
-
             "username": new_user.username,
-
             "email": new_user.email,
-
             "country": new_user.country,
-
             "role": new_user.role
-
         }
-
     }
 
 
@@ -204,7 +196,7 @@ def login(
 ):
 
     # ---------------------------------
-    # Get login value
+    # Get username/email
     # ---------------------------------
 
     login_value = form_data.username.strip()
@@ -292,15 +284,11 @@ def login(
 
     # ---------------------------------
     # Daily login XP
-    # ---------------------------------
     #
     # IMPORTANT:
-    # A problem with the optional XP
-    # reward should NOT prevent a user
-    # from logging into Predix.
-    #
-    # If XP fails, we log the error
-    # and continue with authentication.
+    # If the XP system fails, the user
+    # must still be able to log in.
+    # ---------------------------------
 
     try:
 
