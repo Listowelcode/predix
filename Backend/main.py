@@ -92,7 +92,7 @@ app.add_middleware(
 
         "http://localhost:8080",
 
-        "http://127.0.0.1:8080",
+        "https://predix-sporting.vercel.app",
 
         # Opening the html files directly (double-click) sends
         # Origin: null — allow that too so the app still works
