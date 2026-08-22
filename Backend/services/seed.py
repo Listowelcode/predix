@@ -1,6 +1,6 @@
 import logging
 
-from sqlalchemy import text
+from sqlalchemy import Numeric, inspect, text
 
 
 logger = logging.getLogger("predix.seed")
@@ -82,6 +82,91 @@ BADGE_CATALOG = [
 
 ]
 
+
+def ensure_match_schema(engine):
+    """Ensure the optional match-market column exists on old databases.
+
+    SQLAlchemy's create_all() does not alter an existing table, so a
+    deployment that predates configurable markets needs this small,
+    idempotent upgrade before any Match query is executed.
+    """
+    try:
+        existing_columns = {
+            column["name"]
+            for column in inspect(engine).get_columns("matches")
+        }
+
+        if "extra_markets" in existing_columns:
+            logger.info("[seed] matches.extra_markets column present/verified")
+            return
+
+        if engine.dialect.name == "postgresql":
+            statement = """
+                ALTER TABLE matches
+                ADD COLUMN extra_markets JSONB
+                NOT NULL DEFAULT '{}'::jsonb
+            """
+        else:
+            statement = """
+                ALTER TABLE matches
+                ADD COLUMN extra_markets JSON
+                NOT NULL DEFAULT '{}'
+            """
+
+        with engine.begin() as conn:
+            conn.execute(text(statement))
+
+        logger.info("[seed] matches.extra_markets column added")
+
+    except Exception as exc:
+        logger.error(f"[seed] ensure_match_schema failed: {exc}")
+        raise
+
+
+
+def ensure_decimal_points_schema(engine):
+    """Upgrade existing reward and ticket-total columns to decimal numeric types."""
+    try:
+        if engine.dialect.name != "postgresql":
+            logger.info("[seed] decimal point columns use model types on non-PostgreSQL database")
+            return
+
+        targets = (
+            ("matches", "home_win_points"),
+            ("matches", "away_win_points"),
+            ("matches", "draw_points"),
+            ("predictions", "points_won"),
+            ("prediction_tickets", "possible_points"),
+            ("prediction_tickets", "points_won"),
+        )
+        inspectors = {}
+        for table_name, _ in targets:
+            if table_name not in inspectors:
+                inspectors[table_name] = {
+                    column["name"]: column["type"]
+                    for column in inspect(engine).get_columns(table_name)
+                }
+
+        statements = []
+        for table_name, column_name in targets:
+            column_type = inspectors[table_name].get(column_name)
+            if column_type is not None and not isinstance(column_type, Numeric):
+                statements.append(
+                    f"ALTER TABLE {table_name} ALTER COLUMN {column_name} "
+                    "TYPE NUMERIC(10,2) USING COALESCE(" + column_name + ", 0)::numeric"
+                )
+
+        if statements:
+            with engine.begin() as conn:
+                for statement in statements:
+                    conn.execute(text(statement))
+            logger.info("[seed] decimal reward and ticket-total columns upgraded")
+        else:
+            logger.info("[seed] decimal reward and ticket-total columns present/verified")
+
+    except Exception as exc:
+        logger.error(f"[seed] ensure_decimal_points_schema failed: {exc}")
+        raise
 
 def ensure_badge_schema(engine):
     """

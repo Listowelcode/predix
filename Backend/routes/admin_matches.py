@@ -17,6 +17,7 @@ from models import (
 from dependencies import require_admin
 
 from services.match_status import sync_match_statuses, to_naive_utc
+from services.markets import normalize_extra_markets
 
 from pydantic import BaseModel
 
@@ -52,12 +53,13 @@ class MatchCreate(BaseModel):
 
     duration_minutes: int = 90
 
-    home_win_points: int
+    home_win_points: float
 
-    away_win_points: int
+    away_win_points: float
 
-    draw_points: int
+    draw_points: float
 
+    extra_markets: dict[str, float] = {}
 
 
 
@@ -76,12 +78,13 @@ class MatchUpdate(BaseModel):
 
     duration_minutes: int | None = None
 
-    home_win_points: int | None = None
+    home_win_points: float | None = None
 
-    away_win_points: int | None = None
+    away_win_points: float | None = None
 
-    draw_points: int | None = None
+    draw_points: float | None = None
 
+    extra_markets: dict[str, float] | None = None
 
 
 
@@ -135,6 +138,11 @@ def create_match(
 ):
 
 
+    try:
+        configured_extra_markets = normalize_extra_markets(data.extra_markets)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     match = Match(
 
         home_team=data.home_team,
@@ -154,6 +162,8 @@ def create_match(
         away_win_points=data.away_win_points,
 
         draw_points=data.draw_points,
+
+        extra_markets=configured_extra_markets,
 
         status="UPCOMING"
 
@@ -226,8 +236,13 @@ def update_match(
 
 
     if updates.get("match_date") is not None:
-
         updates["match_date"] = to_naive_utc(updates["match_date"])
+
+    if "extra_markets" in updates:
+        try:
+            updates["extra_markets"] = normalize_extra_markets(updates["extra_markets"])
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 

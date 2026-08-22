@@ -28,6 +28,7 @@ from dependencies import require_admin
 from services.storage import upload_image
 
 from services.match_status import sync_match_statuses, get_match_end, to_naive_utc
+from services.markets import normalize_extra_markets
 
 from typing import List
 
@@ -76,11 +77,13 @@ def create_match(
 
 
 
-    home_win_points: int = Form(0),
+    home_win_points: float = Form(0),
 
-    away_win_points: int = Form(0),
+    away_win_points: float = Form(0),
 
-    draw_points: int = Form(0),
+    draw_points: float = Form(0),
+
+    extra_markets: str = Form("{}"),
 
 
 
@@ -151,6 +154,11 @@ def create_match(
 
 
 
+        try:
+            configured_extra_markets = normalize_extra_markets(extra_markets)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
         match = Match(
 
 
@@ -186,7 +194,10 @@ def create_match(
             away_win_points=away_win_points,
 
 
-            draw_points=draw_points,
+                        draw_points=draw_points,
+
+            extra_markets=configured_extra_markets,
+
 
 
             status="UPCOMING"
@@ -502,6 +513,12 @@ def update_match(
 
         changes["match_date"] = to_naive_utc(changes["match_date"])
 
+    if "extra_markets" in changes:
+        try:
+            changes["extra_markets"] = normalize_extra_markets(changes["extra_markets"])
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
 
 
     for key,value in changes.items():
@@ -567,7 +584,10 @@ def update_match(
 
 
             "draw_points":
-            match.draw_points
+            match.draw_points,
+
+            "extra_markets":
+            match.extra_markets or {}
 
 
         }

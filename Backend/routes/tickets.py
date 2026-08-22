@@ -20,6 +20,7 @@ from dependencies import get_current_user
 
 from services.ticket_refresh import sync_daily_tickets
 from services.xp import check_and_award_matchday_bonus
+from services.markets import is_market_allowed, market_points
 
 from pydantic import BaseModel
 
@@ -112,16 +113,48 @@ def create_ticket(
         )
 
 
+    requested_match_ids = [item.match_id for item in ticket.predictions]
+
+    if len(set(requested_match_ids)) != len(requested_match_ids):
+        raise HTTPException(
+            status_code=400,
+            detail="Each match can be selected only once per ticket."
+        )
+
+    duplicate_rows = db.query(
+        Prediction,
+        Match
+    ).join(
+        Match,
+        Prediction.match_id == Match.id
+    ).filter(
+        Prediction.user_id == user.id,
+        Prediction.match_id.in_(requested_match_ids)
+    ).all()
+
+    if duplicate_rows:
+        used_matches = []
+        seen_match_ids = set()
+
+        for _, used_match in duplicate_rows:
+            if used_match.id in seen_match_ids:
+                continue
+            seen_match_ids.add(used_match.id)
+            used_matches.append(
+                f"{used_match.home_team} vs {used_match.away_team}"
+            )
+
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "You already have a ticket containing: "
+                + ", ".join(used_matches)
+                + ". Choose different matches."
+            )
+        )
 
 
-    allowed_predictions = [
-
-        "HOME_WIN",
-        "AWAY_WIN",
-        "DRAW"
-
-    ]
-
+    fixed_predictions = {"HOME_WIN", "AWAY_WIN", "DRAW"}
 
 
     possible_points = 0
@@ -134,14 +167,11 @@ def create_ticket(
 
 
 
-        if item.prediction not in allowed_predictions:
-
+        prediction_code = item.prediction.upper()
+        if prediction_code not in fixed_predictions and not prediction_code.startswith(("OVER_", "UNDER_")):
             raise HTTPException(
-
                 status_code=400,
-
                 detail="Invalid prediction"
-
             )
 
 
@@ -169,11 +199,14 @@ def create_ticket(
         if match.status != "UPCOMING":
 
             raise HTTPException(
-
                 status_code=400,
-
                 detail="Match is closed"
+            )
 
+        if not is_market_allowed(match, prediction_code):
+            raise HTTPException(
+                status_code=400,
+                detail="This market is not available for the selected match"
             )
 
 
@@ -182,19 +215,7 @@ def create_ticket(
 
 
 
-        if item.prediction == "HOME_WIN":
-
-            possible_points += match.home_win_points
-
-
-        elif item.prediction == "AWAY_WIN":
-
-            possible_points += match.away_win_points
-
-
-        else:
-
-            possible_points += match.draw_points
+        possible_points += market_points(match, prediction_code)
 
 
 
@@ -248,7 +269,7 @@ def create_ticket(
 
             ticket_id=new_ticket.id,
 
-            prediction=item.prediction
+            prediction=item.prediction.upper()
 
         )
 

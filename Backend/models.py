@@ -2,6 +2,7 @@ from sqlalchemy import (
     Column,
     String,
     Integer,
+    Numeric,
     Boolean,
     DateTime,
     Date,
@@ -420,7 +421,7 @@ class Match(Base):
 
     home_win_points = Column(
 
-        Integer,
+        Numeric(10, 2),
 
         default=0
 
@@ -430,7 +431,7 @@ class Match(Base):
 
     away_win_points = Column(
 
-        Integer,
+        Numeric(10, 2),
 
         default=0
 
@@ -440,10 +441,23 @@ class Match(Base):
 
     draw_points = Column(
 
-        Integer,
+        Numeric(10, 2),
 
         default=0
+    )
 
+
+    # Optional markets configured by the admin for this match.
+    # Example: {"OVER_1_5": 3, "UNDER_2_5": 2}
+    # The fixed HOME_WIN / AWAY_WIN / DRAW markets remain in their
+    # dedicated columns and are always available to users.
+    extra_markets = Column(
+
+        JSON,
+
+        default=dict,
+
+        nullable=False
     )
 
 
@@ -578,7 +592,7 @@ class Prediction(Base):
 
     points_won = Column(
 
-        Integer,
+        Numeric(10, 2),
 
         default=0
 
@@ -763,7 +777,7 @@ class PredictionTicket(Base):
 
     possible_points = Column(
 
-        Integer,
+        Numeric(10, 2),
 
         default=0
 
@@ -775,7 +789,7 @@ class PredictionTicket(Base):
 
     points_won = Column(
 
-        Integer,
+        Numeric(10, 2),
 
         default=0
 

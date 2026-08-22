@@ -19,6 +19,7 @@ from models import (
 )
 
 from dependencies import require_admin
+from services.markets import is_extra_market_correct, market_points
 
 from pydantic import BaseModel
 
@@ -166,22 +167,16 @@ def settle_match(
 
 
 
-        if prediction.prediction == winner:
+        is_correct = prediction.prediction == winner
+        if prediction.prediction.startswith(("OVER_", "UNDER_")):
+            is_correct = is_extra_market_correct(
+                prediction.prediction,
+                result.home_score,
+                result.away_score
+            )
 
-
-            if winner == "HOME_WIN":
-
-                points = match.home_win_points
-
-
-            elif winner == "AWAY_WIN":
-
-                points = match.away_win_points
-
-
-            else:
-
-                points = match.draw_points
+        if is_correct:
+            points = market_points(match, prediction.prediction)
 
 
 

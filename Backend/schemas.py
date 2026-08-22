@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 
-from typing import Optional
+from typing import Optional, Dict
 
 from datetime import datetime
 
@@ -123,11 +123,13 @@ class MatchCreate(BaseModel):
     duration_minutes: int = 90
 
 
-    home_win_points: int = 0
+    home_win_points: float = 0
 
-    away_win_points: int = 0
+    away_win_points: float = 0
 
-    draw_points: int = 0
+    draw_points: float = 0
+
+    extra_markets: Dict[str, float] = Field(default_factory=dict)
 
 
 
@@ -156,11 +158,13 @@ class MatchResponse(BaseModel):
 
     away_score: Optional[int] = None
     
-    home_win_points: int
+    home_win_points: float
 
-    away_win_points: int
+    away_win_points: float
 
-    draw_points: int
+    draw_points: float
+
+    extra_markets: Dict[str, float] = Field(default_factory=dict)
 
     winner: Optional[str] = None
 
@@ -189,11 +193,13 @@ class MatchUpdate(BaseModel):
 
     duration_minutes: Optional[int] = None
 
-    home_win_points: Optional[int] = None
+    home_win_points: Optional[float] = None
 
-    away_win_points: Optional[int] = None
+    away_win_points: Optional[float] = None
 
-    draw_points: Optional[int] = None
+    draw_points: Optional[float] = None
+
+    extra_markets: Optional[Dict[str, float]] = None
 
 
 # ==========================================
@@ -219,7 +225,7 @@ class PredictionResponse(BaseModel):
 
     status: str
 
-    points_won: int
+    points_won: float
 
     created_at: datetime
 

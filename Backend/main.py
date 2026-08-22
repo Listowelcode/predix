@@ -11,7 +11,7 @@ from database import engine, SessionLocal
 
 from models import Base
 
-from services.seed import ensure_badge_schema, seed_badges
+from services.seed import ensure_match_schema, ensure_decimal_points_schema, ensure_badge_schema, seed_badges
 
 
 logging.basicConfig(level=logging.INFO)
@@ -92,7 +92,7 @@ app.add_middleware(
 
         "http://localhost:8080",
 
-        "https://predix-sporting.vercel.app",
+        "http://127.0.0.1:8080",
 
         # Opening the html files directly (double-click) sends
         # Origin: null — allow that too so the app still works
@@ -141,6 +141,10 @@ Base.metadata.create_all(
 
 )
 
+# Existing databases do not get new model columns from create_all();
+# repair the match schema before any startup code queries Match rows.
+ensure_match_schema(engine)
+ensure_decimal_points_schema(engine)
 
 
 # ===============================
