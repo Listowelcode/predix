@@ -1,5 +1,7 @@
 import logging
 
+import os
+
 from fastapi import FastAPI
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -68,45 +70,38 @@ app = FastAPI(
 # ===============================
 
 
+LOCAL_FRONTEND_ORIGINS = [
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://localhost:5501",
+    "http://127.0.0.1:5501",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+    # Opening the html files directly sends Origin: null.
+    "null",
+]
+
+# Set FRONTEND_ORIGINS to a comma-separated list in production when the
+# frontend is hosted on a known origin. The regex fallback also supports a
+# static frontend hosted on a separate HTTPS domain; authentication uses the
+# Authorization header, not browser cookies.
+CONFIGURED_FRONTEND_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
-
     CORSMiddleware,
-
-    allow_origins=[
-
-        "http://localhost:5500",
-
-        "http://127.0.0.1:5500",
-
-        "http://localhost:5501",
-
-        "http://127.0.0.1:5501",
-
-        "http://localhost:3000",
-
-        "http://127.0.0.1:3000",
-
-        "https://predix-sporting.vercel.app",
-
-        "http://127.0.0.1:5173",
-
-        "http://localhost:8080",
-
-        "http://127.0.0.1:8080",
-
-        # Opening the html files directly (double-click) sends
-        # Origin: null — allow that too so the app still works
-        # without a local dev server.
-        "null"
-
-    ],
-
+    allow_origins=list(dict.fromkeys(LOCAL_FRONTEND_ORIGINS + CONFIGURED_FRONTEND_ORIGINS)),
+    allow_origin_regex=os.getenv("FRONTEND_ORIGIN_REGEX", r"^https?://.+$"),
     allow_credentials=True,
-
     allow_methods=["*"],
-
     allow_headers=["*"],
-
 )
 
 

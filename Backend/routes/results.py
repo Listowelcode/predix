@@ -252,7 +252,8 @@ def settle_match(
 
     ).filter(
 
-        Prediction.match_id == match.id
+        Prediction.match_id == match.id,
+        PredictionTicket.status != "DELETED",
 
     ).distinct().all()
 

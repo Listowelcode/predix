@@ -252,70 +252,14 @@ def delete_ticket(
 
 
 
-    # remove predictions first
-
-    db.query(Prediction).filter(
-
-        Prediction.ticket_id == ticket.id
-
-    ).delete(
-
-        synchronize_session=False
-
-    )
-
-
-
-
-
-
-    # refund ticket back to user
-
-    if user:
-
-
-        user.tickets += 1
-
-
-
-        history = TicketHistory(
-
-            user_id=user.id,
-
-            amount=1,
-
-            action="REFUNDED"
-
-        )
-
-
-        db.add(history)
-
-
-
-
-
-
-
-    # delete ticket
-
-
-    db.delete(ticket)
-
-
-
+        # Keep the ticket and its predictions for audit/history purposes. Admin
+    # deletion is a soft delete and never refunds the user's ticket credit.
+    ticket.status = "DELETED"
     db.commit()
 
-
-
-
-
     return {
-
-
-        "message":
-
-        "Ticket deleted successfully"
-
-
+        "message": "Ticket marked as deleted successfully. No ticket was refunded.",
+        "ticket_id": str(ticket.id),
+        "ticket_number": ticket.ticket_number,
+        "status": ticket.status,
     }

@@ -1,4 +1,7 @@
+from datetime import datetime
+
 from fastapi import (
+
     APIRouter,
     Depends,
     HTTPException
@@ -24,13 +27,18 @@ from services.markets import is_market_allowed, market_points
 
 from pydantic import BaseModel
 
+import logging
+
 from typing import List
 
 import uuid
 
 
+logger = logging.getLogger(__name__)
+
 
 router = APIRouter(
+
     prefix="/tickets",
     tags=["Prediction Tickets"]
 )
@@ -320,9 +328,13 @@ def create_ticket(
     # next request.
     db.refresh(user)
 
-    sync_daily_tickets(user, db)
-
-
+    # Placement is already committed. Ticket refresh is a convenience side
+    # effect and must not make a successful ticket look like a connection
+    # failure if the refresh encounters an unrelated database issue.
+    try:
+        sync_daily_tickets(user, db)
+    except Exception:
+        logger.exception("Daily ticket refresh failed after ticket placement")
 
 
     return {
@@ -349,6 +361,74 @@ def create_ticket(
 # GET MY TICKETS
 # =====================================
 
+
+def ticket_matches_exhausted(predictions) -> bool:
+    """Return true only when every ticket leg has reached FINISHED."""
+
+    return bool(predictions) and all(
+        prediction.match is not None
+        and prediction.match.status == "FINISHED"
+        for prediction in predictions
+    )
+
+
+@router.delete("/my/{ticket_id}")
+def delete_my_ticket(
+    ticket_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: Profile = Depends(get_current_user),
+):
+    """Soft-delete an active ticket without refunding its ticket credit."""
+
+    ticket = db.query(PredictionTicket).filter(
+        PredictionTicket.id == ticket_id,
+        PredictionTicket.user_id == user.id,
+    ).first()
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    if ticket.status != "PENDING":
+        raise HTTPException(
+            status_code=400,
+            detail="Only an active ticket can be deleted.",
+        )
+
+    predictions = db.query(Prediction).filter(
+        Prediction.ticket_id == ticket.id,
+    ).all()
+    match_ids = [prediction.match_id for prediction in predictions]
+    started_matches = []
+
+    if match_ids:
+        started_matches = db.query(Match).filter(
+            Match.id.in_(match_ids),
+            (
+                (Match.status != "UPCOMING")
+                | (Match.match_date <= datetime.utcnow())
+            ),
+        ).all()
+
+    if started_matches:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This ticket cannot be deleted because at least one match "
+                "has already started."
+            ),
+        )
+
+    ticket.status = "DELETED"
+    db.commit()
+
+    return {
+        "message": "Ticket deleted successfully. No ticket was refunded.",
+        "ticket_id": str(ticket.id),
+        "ticket_number": ticket.ticket_number,
+        "status": ticket.status,
+    }
+
+
 @router.get("/my")
 def get_my_tickets(
 
@@ -374,7 +454,8 @@ def get_my_tickets(
 
     ).filter(
 
-        PredictionTicket.user_id == user.id
+        PredictionTicket.user_id == user.id,
+        PredictionTicket.status != "DELETED",
 
     ).order_by(
 
@@ -470,13 +551,12 @@ def get_my_tickets(
 
 
 
-        if ticket.status == "PENDING":
-
+        # A pending ticket remains active while any linked match is not
+        # exhausted. Once every leg is FINISHED, it belongs in Past Tickets
+        # even if a legacy/stale row has not yet been assigned WON or LOST.
+        if ticket.status == "PENDING" and not ticket_matches_exhausted(predictions):
             active.append(ticket_data)
-
-
         else:
-
             past.append(ticket_data)
 
 
